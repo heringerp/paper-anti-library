@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'fileutils'
+
+parser = OptionParser.new
+
+parser.on('-r', '--read', 'Open a notes file to make notes during reading for the current file')
+parser.on('-f', '--finish', 'Finish the current file')
+
+options = {}
+
+parser.parse!(into: options)
+
+if options.key?(:read) and options.key?(:finish)
+  puts 'Cannot read and finish a paper at the same time! Please only use one of --read and --finish'
+  exit()
+end
+
+if !Dir.exist?("#{Dir.home}/paal")
+  Dir.mkdir("#{Dir.home}/paal")
+end
+
+if !Dir.exist?("#{Dir.home}/paal/to_read")
+  Dir.mkdir("#{Dir.home}/paal/to_read")
+end
+
+if !Dir.exist?("#{Dir.home}/paal/finished")
+  Dir.mkdir("#{Dir.home}/paal/finished")
+end
+
+papers = Dir.glob("#{Dir.home}/paal/to_read/*.pdf")
+
+max_paper = ""
+max_ctime = Time.at(0)
+
+papers.each do |paper|
+  curr_ctime = File.ctime(paper)
+  if curr_ctime > max_ctime
+    max_ctime = curr_ctime
+    max_paper = paper
+  end
+end
+
+if options.empty?
+  puts "Current paper:"
+  puts max_paper
+elsif options.key?(:read)
+  puts "Reading #{max_paper}"
+  system("$EDITOR #{max_paper}.md")
+elsif options.key?(:finish)
+  paper_basename = File.basename(max_paper)
+  new_path = "#{Dir.home}/paal/finished/#{paper_basename}"
+  FileUtils.mv(max_paper, new_path)
+  puts "Finished moving #{max_paper} -> #{new_path}"
+  if File.exist?("#{max_paper}.md")
+    new_notes_path = "#{Dir.home}/paal/finished/#{paper_basename}.md"
+    FileUtils.mv("#{max_paper}.md", new_notes_path)
+    puts "Also moved #{max_paper}.md -> #{new_notes_path}"
+  end
+end
+
