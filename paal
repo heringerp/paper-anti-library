@@ -2,6 +2,14 @@
 
 require 'optparse'
 require 'fileutils'
+require 'logger'
+
+main_dir = "#{Dir.home}/paal"
+read_dir = "#{main_dir}/to_read"
+finished_dir = "#{main_dir}/finished"
+current_dir ="#{main_dir}/current"
+
+$logger = Logger.new($stderr)
 
 parser = OptionParser.new
 
@@ -17,46 +25,81 @@ if options.key?(:read) and options.key?(:finish)
   exit()
 end
 
-if !Dir.exist?("#{Dir.home}/paal")
-  Dir.mkdir("#{Dir.home}/paal")
-end
-
-if !Dir.exist?("#{Dir.home}/paal/to_read")
-  Dir.mkdir("#{Dir.home}/paal/to_read")
-end
-
-if !Dir.exist?("#{Dir.home}/paal/finished")
-  Dir.mkdir("#{Dir.home}/paal/finished")
-end
-
-papers = Dir.glob("#{Dir.home}/paal/to_read/*.pdf")
-
-max_paper = ""
-max_ctime = Time.at(0)
-
-papers.each do |paper|
-  curr_ctime = File.ctime(paper)
-  if curr_ctime > max_ctime
-    max_ctime = curr_ctime
-    max_paper = paper
+def create_if_not_exists!(dir)
+  if !Dir.exist?(dir)
+    Dir.mkdir(dir)
   end
 end
 
+def get_most_recent_paper(read_dir)
+  papers = Dir.glob("#{read_dir}/*.pdf")
+
+  max_paper = ""
+  max_ctime = Time.at(0)
+
+  papers.each do |paper|
+    curr_ctime = File.ctime(paper)
+    if curr_ctime > max_ctime
+      max_ctime = curr_ctime
+      max_paper = paper
+    end
+  end
+  return max_paper
+end 
+
+def get_current_paper!(current_dir, read_dir)
+  papers = Dir.glob("#{current_dir}/*.pdf")
+  if papers.length == 0
+    max_paper = get_most_recent_paper(read_dir)
+    paper_basename = File.basename(max_paper)
+    new_path = "#{current_dir}/#{paper_basename}"
+    FileUtils.mv(max_paper, new_path)
+    $logger.info("Finished moving #{max_paper} -> #{new_path}")
+    return new_path
+  elsif papers.length == 1
+    return papers.first
+  else
+    $logger.error("Error! More than 1 paper in #{current_dir}! Please remove excess papers")
+    exit()
+  end
+end
+
+def get_current_paper(current_dir)
+  papers = Dir.glob("#{current_dir}/*.pdf")
+  if papers.length == 1
+    return papers.first
+  elsif papers.length == 0
+    $logger.error("Error! Not reading any paper currently!")
+    exit()
+  else
+    $logger.error("Error! More than 1 paper in #{current_dir}! Please remove excess papers")
+    exit()
+  end
+end
+
+create_if_not_exists!(main_dir)
+create_if_not_exists!(read_dir)
+create_if_not_exists!(finished_dir)
+create_if_not_exists!(current_dir)
+
 if options.empty?
+  max_paper = get_current_paper!(current_dir, read_dir)
   puts "Current paper:"
   puts max_paper
 elsif options.key?(:read)
-  puts "Reading #{max_paper}"
+  max_paper = get_current_paper!(current_dir, read_dir)
+  $logger.info("Reading #{max_paper}")
   system("$EDITOR #{max_paper}.md")
 elsif options.key?(:finish)
+  max_paper = get_current_paper(current_dir)
   paper_basename = File.basename(max_paper)
-  new_path = "#{Dir.home}/paal/finished/#{paper_basename}"
+  new_path = "#{finished_dir}/#{paper_basename}"
   FileUtils.mv(max_paper, new_path)
-  puts "Finished moving #{max_paper} -> #{new_path}"
+  $logger.info("Finished moving #{max_paper} -> #{new_path}")
   if File.exist?("#{max_paper}.md")
-    new_notes_path = "#{Dir.home}/paal/finished/#{paper_basename}.md"
+    new_notes_path = "#{finished_dir}/#{paper_basename}.md"
     FileUtils.mv("#{max_paper}.md", new_notes_path)
-    puts "Also moved #{max_paper}.md -> #{new_notes_path}"
+    $logger.info("Also moved #{max_paper}.md -> #{new_notes_path}")
   end
 end
 
