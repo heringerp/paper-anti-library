@@ -4,11 +4,14 @@ An [anti-library](https://en.wikipedia.org/wiki/Antilibrary) is a pile of books 
 
 Running the tool once will create the folders `~/paal/to_read`, `~/paal/current` and `~/paal/finished`. Add new papers to the `~/paal/to_read` folder.
 
-```
-# Get the path of the current paper. If there is no current paper, the most recently added paper will become the current paper.
+```bash
+# Get the path of the current paper. If there is no current paper,
+# the most recently added paper will become the current paper.
 paal
 
-# Uses the $EDITOR environment variable to open a markdown notes file for the current paper. If there is no current paper, the most recently added paper will become the current paper.
+# Uses the $EDITOR environment variable to open a markdown notes
+# file for the current paper. If there is no current paper, the
+# most recently added paper will become the current paper.
 paal -r
 
 # Marks the current paper as finished by moving it (and possibly its notes) to `~/paal/finished`.
